@@ -1,6 +1,6 @@
-# Clinic Token Generator
+# QueueMed
 
-A Flutter app for generating patient queue tokens in a clinic. The app automatically resets token numbers daily and stores all data locally using SharedPreferences.
+A Flutter app for generating patient queue tokens in a clinic. QueueMed automatically resets token numbers daily and stores all data locally using SharedPreferences.
 
 ## Features
 
@@ -46,7 +46,7 @@ A Flutter app for generating patient queue tokens in a clinic. The app automatic
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd token_generator
+cd queuemed
 ```
 
 2. Install dependencies:

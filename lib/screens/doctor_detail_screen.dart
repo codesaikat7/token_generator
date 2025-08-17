@@ -19,14 +19,40 @@ class DoctorDetailScreen extends StatefulWidget {
 }
 
 class _DoctorDetailScreenState extends State<DoctorDetailScreen>
-    with SingleTickerProviderStateMixin {
-  final StorageService _storageService = StorageService();
+    with TickerProviderStateMixin {
+  final StorageService _storageService = StorageService.instance;
   late TabController _tabController;
   List<Patient> _patients = [];
   List<Token> _tokens = [];
   bool _isLoading = true;
-  // Key to force rebuild of patient cards
-  Key _patientListKey = UniqueKey();
+  // Add a callback mechanism for faster updates
+  final List<Function()> _refreshCallbacks = [];
+  // Add a map to store patient token status for instant access
+  Map<String, bool> _patientTokenStatus = {};
+
+  // Method to register refresh callbacks
+  void _registerRefreshCallback(Function() callback) {
+    _refreshCallbacks.add(callback);
+  }
+
+  // Method to unregister refresh callbacks
+  void _unregisterRefreshCallback(Function() callback) {
+    _refreshCallbacks.remove(callback);
+  }
+
+  // Method to notify all PatientCard widgets to refresh
+  void _notifyPatientCardsToRefresh() {
+    // Update the token status map first
+    for (final patient in _patients) {
+      _patientTokenStatus[patient.id] =
+          _tokens.any((token) => token.patientId == patient.id);
+    }
+
+    // Then notify widgets to refresh
+    for (final callback in _refreshCallbacks) {
+      callback();
+    }
+  }
 
   @override
   void initState() {
@@ -51,12 +77,23 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
           await _storageService.getPatientsByDoctor(widget.doctor.id);
       final tokens = await _storageService.getTokensByDoctor(widget.doctor.id);
 
+      // Sort patients by ID (newest first) - since ID is timestamp
+      patients.sort((a, b) => b.id.compareTo(a.id));
+
       // Sort tokens by token number (ascending order)
       tokens.sort((a, b) => a.tokenNumber.compareTo(b.tokenNumber));
+
+      // Create a map of patient ID to token status for instant access
+      final patientTokenStatus = <String, bool>{};
+      for (final patient in patients) {
+        patientTokenStatus[patient.id] =
+            tokens.any((token) => token.patientId == patient.id);
+      }
 
       setState(() {
         _patients = patients;
         _tokens = tokens;
+        _patientTokenStatus = patientTokenStatus;
         _isLoading = false;
       });
     } catch (e) {
@@ -106,16 +143,16 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
   }
 
   void _onPatientDeleted() {
-    // Force rebuild of patient list by changing the key
-    setState(() {
-      _patientListKey = UniqueKey();
-    });
-    // Also refresh the data
+    // Refresh the data
     _loadData();
   }
 
   void _onTokenGenerated(Token token) {
-    _loadData();
+    // Update the patient token status immediately
+    _patientTokenStatus[token.patientId] = true;
+    setState(() {}); // Trigger UI update
+
+    _loadData(); // Reload data in background
     _showTokenGeneratedDialog(token);
   }
 
@@ -157,43 +194,78 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
   void _showTokenGeneratedDialog(Token token) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Token Generated!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.confirmation_number,
-              size: 60,
-              color: Colors.green,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Token #${token.tokenNumber}',
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+      builder: (context) => Dialog(
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.6,
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title
+                  const Text(
+                    'Token Generated!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Icon
+                  const Icon(
+                    Icons.confirmation_number,
+                    size: 60,
+                    color: Colors.green,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Token Number
+                  Text(
+                    'Token #${token.tokenNumber}',
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Patient Name
+                  Text(
+                    'Patient: ${token.patientName}',
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Doctor Name
+                  Text(
+                    'Dr. ${widget.doctor.name}',
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Patient: ${token.patientName}',
-              style: const TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Dr. ${widget.doctor.name}',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -217,11 +289,9 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
               try {
                 await _storageService.resetTokensByDoctor(widget.doctor.id);
                 await _loadData();
-                // Force rebuild of patient cards by changing the key
-                setState(() {
-                  _patientListKey = UniqueKey();
-                });
+                // Notify PatientCard widgets to refresh their token status
                 if (mounted) {
+                  _notifyPatientCardsToRefresh();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('All tokens reset successfully!'),
@@ -250,6 +320,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text('Dr. ${widget.doctor.name}'),
         centerTitle: true,
@@ -331,19 +402,22 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
       );
     }
 
-    return ListView.builder(
-      key: _patientListKey,
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      itemCount: _patients.length,
-      itemBuilder: (context, index) {
-        final patient = _patients[index];
-        return PatientCard(
-          patient: patient,
-          doctor: widget.doctor,
-          onPatientDeleted: _onPatientDeleted,
-          onTokenGenerated: _onTokenGenerated,
-        );
-      },
+      child: Column(
+        children: _patients
+            .map((patient) => PatientCard(
+                  key: ValueKey(patient.id),
+                  patient: patient,
+                  doctor: widget.doctor,
+                  hasToken: _patientTokenStatus[patient.id] ?? false,
+                  onPatientDeleted: _onPatientDeleted,
+                  onTokenGenerated: _onTokenGenerated,
+                  onRegisterRefresh: _registerRefreshCallback,
+                  onUnregisterRefresh: _unregisterRefreshCallback,
+                ))
+            .toList(),
+      ),
     );
   }
 
@@ -384,13 +458,13 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
       );
     }
 
-    return ListView.builder(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      itemCount: _tokens.length,
-      itemBuilder: (context, index) {
-        final token = _tokens[index];
-        return TokenCard(token: token, doctor: widget.doctor);
-      },
+      child: Column(
+        children: _tokens
+            .map((token) => TokenCard(token: token, doctor: widget.doctor))
+            .toList(),
+      ),
     );
   }
 }

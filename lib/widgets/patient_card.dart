@@ -8,15 +8,21 @@ import '../models/doctor.dart';
 class PatientCard extends StatefulWidget {
   final Patient patient;
   final Doctor doctor;
+  final bool hasToken; // Add direct token status parameter
   final VoidCallback onPatientDeleted;
   final Function(Token) onTokenGenerated;
+  final Function(Function()) onRegisterRefresh;
+  final Function(Function()) onUnregisterRefresh;
 
   const PatientCard({
     super.key,
     required this.patient,
     required this.doctor,
+    required this.hasToken, // Make it required
     required this.onPatientDeleted,
     required this.onTokenGenerated,
+    required this.onRegisterRefresh,
+    required this.onUnregisterRefresh,
   });
 
   @override
@@ -24,15 +30,33 @@ class PatientCard extends StatefulWidget {
 }
 
 class _PatientCardState extends State<PatientCard> {
-  final StorageService _storageService = StorageService();
+  final StorageService _storageService = StorageService.instance;
   bool _isGenerating = false;
   bool _hasToken = false;
-  bool _isLoadingTokenStatus = true;
+  bool _isLoadingTokenStatus =
+      false; // Start with false since we get status from parent
 
   @override
   void initState() {
     super.initState();
-    _checkTokenStatus();
+    // Use the token status passed from parent
+    _hasToken = widget.hasToken;
+
+    // Register the refresh callback to update from parent
+    widget.onRegisterRefresh(() {
+      _hasToken = widget.hasToken;
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    // Unregister the refresh callback
+    widget.onUnregisterRefresh(() {
+      _hasToken = widget.hasToken;
+      setState(() {});
+    });
+    super.dispose();
   }
 
   Future<void> _checkTokenStatus() async {
@@ -58,9 +82,14 @@ class _PatientCardState extends State<PatientCard> {
   @override
   void didUpdateWidget(PatientCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Refresh token status when the widget is updated
+    // Update token status when the widget is updated
     if (oldWidget.patient.id != widget.patient.id) {
-      _checkTokenStatus();
+      _hasToken = widget.hasToken;
+      setState(() {});
+    } else if (oldWidget.hasToken != widget.hasToken) {
+      // Token status changed
+      _hasToken = widget.hasToken;
+      setState(() {});
     }
   }
 

@@ -58,6 +58,7 @@ class _PrintAllTokensScreenState extends State<PrintAllTokensScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Print All Tokens'),
         backgroundColor: Colors.deepPurple,

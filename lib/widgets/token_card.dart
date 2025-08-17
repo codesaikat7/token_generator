@@ -63,35 +63,24 @@ class TokenCard extends StatelessWidget {
                 ],
               ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => PrintPreviewScreen(
-                          token: token,
-                          doctor: doctor,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.print, color: Colors.orange),
-                  tooltip: 'Print Token',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
+            IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => PrintPreviewScreen(
+                      token: token,
+                      doctor: doctor,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.confirmation_number,
-                  color: Colors.deepPurple,
-                  size: 20,
-                ),
-              ],
+                );
+              },
+              icon: const Icon(Icons.print, color: Colors.orange),
+              tooltip: 'Print Token',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
             ),
           ],
         ),

@@ -55,6 +55,7 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Print Preview'),
         backgroundColor: Colors.deepPurple,

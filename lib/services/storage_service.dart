@@ -1,10 +1,16 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import '../models/doctor.dart';
 import '../models/patient.dart';
 import '../models/token.dart';
 
-class StorageService {
+class StorageService extends ChangeNotifier {
+  static final StorageService _instance = StorageService._internal();
+  static StorageService get instance => _instance;
+
+  StorageService._internal();
+
   static const String _doctorsKey = 'doctors';
   static const String _patientsKey = 'patients';
   static const String _tokensKey = 'tokens';
@@ -20,7 +26,6 @@ class StorageService {
   }
 
   Future<void> addDoctor(Doctor doctor) async {
-    final prefs = await SharedPreferences.getInstance();
     final doctors = await getDoctors();
 
     // Check if doctor with same name already exists
@@ -33,7 +38,6 @@ class StorageService {
   }
 
   Future<void> updateDoctor(Doctor doctor) async {
-    final prefs = await SharedPreferences.getInstance();
     final doctors = await getDoctors();
 
     final index = doctors.indexWhere((d) => d.id == doctor.id);
@@ -44,7 +48,6 @@ class StorageService {
   }
 
   Future<void> deleteDoctor(String doctorId) async {
-    final prefs = await SharedPreferences.getInstance();
     final doctors = await getDoctors();
 
     doctors.removeWhere((d) => d.id == doctorId);
@@ -94,6 +97,9 @@ class StorageService {
 
     allPatients.add(patient);
     await _savePatients(allPatients);
+
+    // Notify all patient count widgets to refresh
+    notifyPatientCountChanged();
   }
 
   Future<void> deletePatient(String patientId) async {
@@ -109,6 +115,9 @@ class StorageService {
 
     // Also delete all tokens associated with this patient
     await deleteTokensByPatient(patientId);
+
+    // Notify all patient count widgets to refresh
+    notifyPatientCountChanged();
   }
 
   Future<void> deletePatientsByDoctor(String doctorId) async {
@@ -127,6 +136,8 @@ class StorageService {
     for (final patientId in patientIdsToDelete) {
       await deletePatient(patientId);
     }
+
+    // Note: No need to call notifyPatientCountChanged() here as deletePatient already does it
   }
 
   Future<void> _savePatients(List<Patient> patients) async {
@@ -186,7 +197,82 @@ class StorageService {
     allTokens.add(newToken);
     await _saveAllTokens(allTokens);
 
+    // Update doctor's last token information
+    await _updateDoctorLastToken(doctorId, nextTokenNumber, today);
+
     return nextTokenNumber;
+  }
+
+  Future<void> _updateDoctorLastToken(
+      String doctorId, int tokenNumber, DateTime tokenDate) async {
+    final allDoctors = await getDoctors();
+
+    // Find and update the specific doctor
+    final doctorIndex =
+        allDoctors.indexWhere((doctor) => doctor.id == doctorId);
+    if (doctorIndex != -1) {
+      final updatedDoctor = allDoctors[doctorIndex].copyWith(
+        lastTokenNumber: tokenNumber,
+        lastTokenDate: tokenDate,
+      );
+      allDoctors[doctorIndex] = updatedDoctor;
+
+      // Save updated doctors list
+      await _saveDoctors(allDoctors);
+    }
+  }
+
+  Future<void> _resetDoctorLastToken(String doctorId) async {
+    final allDoctors = await getDoctors();
+
+    // Find and reset the specific doctor's token information
+    final doctorIndex =
+        allDoctors.indexWhere((doctor) => doctor.id == doctorId);
+    if (doctorIndex != -1) {
+      final updatedDoctor = allDoctors[doctorIndex].copyWith(
+        lastTokenNumber: 0,
+        lastTokenDate: DateTime.now(),
+      );
+      allDoctors[doctorIndex] = updatedDoctor;
+
+      // Save updated doctors list
+      await _saveDoctors(allDoctors);
+    }
+  }
+
+  Future<void> _updateDoctorLastTokenFromRemainingTokens(
+      String doctorId) async {
+    final allDoctors = await getDoctors();
+    final remainingTokens = await getTokensByDoctor(doctorId);
+
+    // Find the specific doctor
+    final doctorIndex =
+        allDoctors.indexWhere((doctor) => doctor.id == doctorId);
+    if (doctorIndex != -1) {
+      int lastTokenNumber = 0;
+      DateTime lastTokenDate = DateTime.now();
+
+      if (remainingTokens.isNotEmpty) {
+        // Find the highest token number among remaining tokens
+        lastTokenNumber = remainingTokens
+            .map((token) => token.tokenNumber)
+            .reduce((a, b) => a > b ? a : b);
+
+        // Find the most recent token date
+        lastTokenDate = remainingTokens
+            .map((token) => token.generatedAt)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+      }
+
+      final updatedDoctor = allDoctors[doctorIndex].copyWith(
+        lastTokenNumber: lastTokenNumber,
+        lastTokenDate: lastTokenDate,
+      );
+      allDoctors[doctorIndex] = updatedDoctor;
+
+      // Save updated doctors list
+      await _saveDoctors(allDoctors);
+    }
   }
 
   Future<List<Token>> getTokensByDoctor(String doctorId) async {
@@ -212,6 +298,9 @@ class StorageService {
 
     allTokens.removeWhere((t) => t.doctorId == doctorId);
     await _saveAllTokens(allTokens);
+
+    // Reset the doctor's last token information since all tokens are deleted
+    await _resetDoctorLastToken(doctorId);
   }
 
   Future<void> deleteTokensByPatient(String patientId) async {
@@ -219,8 +308,27 @@ class StorageService {
     final allTokens =
         allTokensJson.map((json) => Token.fromJson(jsonDecode(json))).toList();
 
+    // Find the doctor ID before removing the token
+    String? doctorId;
+    final tokenToDelete = allTokens.firstWhere(
+      (t) => t.patientId == patientId,
+      orElse: () => Token(
+        id: '',
+        tokenNumber: 0,
+        patientName: '',
+        patientId: '',
+        doctorId: '',
+      ),
+    );
+    doctorId = tokenToDelete.doctorId;
+
     allTokens.removeWhere((t) => t.patientId == patientId);
     await _saveAllTokens(allTokens);
+
+    // Update the doctor's last token information based on remaining tokens
+    if (doctorId.isNotEmpty) {
+      await _updateDoctorLastTokenFromRemainingTokens(doctorId);
+    }
   }
 
   // Reset all tokens functionality
@@ -232,6 +340,12 @@ class StorageService {
     // Clear all tokens
     allTokens.clear();
     await _saveAllTokens(allTokens);
+
+    // Reset all doctors' last token information
+    final allDoctors = await getDoctors();
+    for (final doctor in allDoctors) {
+      await _resetDoctorLastToken(doctor.id);
+    }
   }
 
   Future<void> resetTokensByDoctor(String doctorId) async {
@@ -242,6 +356,9 @@ class StorageService {
     // Remove only tokens for specific doctor
     allTokens.removeWhere((t) => t.doctorId == doctorId);
     await _saveAllTokens(allTokens);
+
+    // Reset the doctor's last token information
+    await _resetDoctorLastToken(doctorId);
   }
 
   Future<List<String>> _getAllTokensJson() async {
@@ -255,5 +372,10 @@ class StorageService {
         tokens.map((token) => jsonEncode(token.toJson())).toList();
 
     await prefs.setStringList(_tokensKey, tokensJson);
+  }
+
+  // Method to notify patient count changes
+  void notifyPatientCountChanged() {
+    notifyListeners();
   }
 }

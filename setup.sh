@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Setting up Clinic Token Generator Flutter App"
+echo "🚀 Setting up QueueMed Flutter App"
 echo "================================================"
 
 # Check if Flutter is installed

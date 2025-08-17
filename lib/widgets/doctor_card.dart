@@ -1,28 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/doctor.dart';
 import '../screens/doctor_detail_screen.dart';
 
 class DoctorCard extends StatelessWidget {
   final Doctor doctor;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
+  final int patientCount; // Add patient count parameter
 
-  const DoctorCard({super.key, required this.doctor, required this.onDelete});
+  const DoctorCard({
+    super.key,
+    required this.doctor,
+    required this.onDelete,
+    this.onTap,
+    required this.patientCount, // Make it required
+  });
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM dd, yyyy');
-
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
+        onTap: () async {
+          if (onTap != null) {
+            onTap!();
+          }
+          await Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => DoctorDetailScreen(doctor: doctor),
             ),
           );
+          // Refresh the parent widget when returning
+          if (onTap != null) {
+            onTap!();
+          }
         },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
@@ -84,24 +96,8 @@ class DoctorCard extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Date:',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        Text(
-                          dateFormat.format(doctor.lastTokenDate),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                    child: _PatientCountWidget(
+                      patientCount: patientCount, // Pass the patient count
                     ),
                   ),
                 ],
@@ -164,6 +160,37 @@ class DoctorCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PatientCountWidget extends StatelessWidget {
+  final int patientCount;
+
+  const _PatientCountWidget({required this.patientCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Total Patients:',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$patientCount',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+      ],
     );
   }
 }

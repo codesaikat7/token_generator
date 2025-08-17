@@ -12,8 +12,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final StorageService _storageService = StorageService();
+  final StorageService _storageService = StorageService.instance;
   List<Doctor> _doctors = [];
+  bool _isLoading = true;
+  GlobalKey _doctorListKey = GlobalKey();
+  // Add a map to store patient counts for each doctor
+  Map<String, int> _doctorPatientCounts = {};
 
   @override
   void initState() {
@@ -22,10 +26,40 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadDoctors() async {
-    final doctors = await _storageService.getDoctors();
     setState(() {
-      _doctors = doctors;
+      _isLoading = true;
     });
+
+    try {
+      final doctors = await _storageService.getDoctors();
+
+      // Fetch patient counts for each doctor
+      final patientCounts = <String, int>{};
+      for (final doctor in doctors) {
+        final patients = await _storageService.getPatientsByDoctor(doctor.id);
+        patientCounts[doctor.id] = patients.length;
+      }
+
+      if (mounted) {
+        setState(() {
+          _doctors = doctors;
+          _doctorPatientCounts = patientCounts;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading doctors: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _addDoctor() async {
@@ -36,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (result != null) {
       await _storageService.addDoctor(result);
-      _loadDoctors();
+      await _loadDoctors(); // Refresh doctors and patient counts
     }
   }
 
@@ -63,60 +97,77 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (confirmed == true) {
       await _storageService.deleteDoctor(doctor.id);
-      _loadDoctors();
+      await _loadDoctors(); // Refresh doctors and patient counts
     }
+  }
+
+  Future<void> _refreshDoctorList() async {
+    setState(() {
+      _doctorListKey = GlobalKey();
+    });
+    await _loadDoctors(); // Refresh doctors and patient counts
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Clinic Token Generator'),
+        title: const Text('QueueMed'),
         centerTitle: true,
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
       ),
-      body: _doctors.isEmpty
+      body: _isLoading
           ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.medical_services_outlined,
-                    size: 80,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No doctors added yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Add your first doctor to start managing patients and tokens',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+              child: CircularProgressIndicator(),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _doctors.length,
-              itemBuilder: (context, index) {
-                final doctor = _doctors[index];
-                return DoctorCard(
-                  doctor: doctor,
-                  onDelete: () => _deleteDoctor(doctor),
-                );
-              },
-            ),
+          : _doctors.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.medical_services_outlined,
+                        size: 80,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No doctors added yet',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Add your first doctor to start managing patients and tokens',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  key: _doctorListKey,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _doctors.length,
+                  itemBuilder: (context, index) {
+                    final doctor = _doctors[index];
+                    final patientCount = _doctorPatientCounts[doctor.id] ?? 0;
+                    return DoctorCard(
+                      key: ValueKey(doctor.id),
+                      doctor: doctor,
+                      patientCount: patientCount,
+                      onDelete: () => _deleteDoctor(doctor),
+                      onTap: () async => await _refreshDoctorList(),
+                    );
+                  },
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addDoctor,
         child: const Icon(Icons.add),
