@@ -317,6 +317,54 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
     );
   }
 
+  void _showDeleteAllPatientsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete All Patients'),
+        content: Text(
+          'Are you sure you want to delete ALL patients for Dr. ${widget.doctor.name}? '
+          'This action cannot be undone and will also delete all associated tokens.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop(); // Close dialog
+              try {
+                await _storageService.deletePatientsByDoctor(widget.doctor.id);
+                await _loadData();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All patients deleted successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting patients: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -337,6 +385,12 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
             icon: const Icon(Icons.refresh),
             tooltip: 'Reset All Tokens',
           ),
+          if (_patients.isNotEmpty)
+            IconButton(
+              onPressed: _showDeleteAllPatientsDialog,
+              icon: const Icon(Icons.delete_forever),
+              tooltip: 'Delete All Patients',
+            ),
         ],
         bottom: TabBar(
           controller: _tabController,

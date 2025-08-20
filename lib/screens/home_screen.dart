@@ -108,6 +108,55 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadDoctors(); // Refresh doctors and patient counts
   }
 
+  Future<void> _showDeleteAllDoctorsDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete All Doctors'),
+        content: const Text(
+          'Are you sure you want to delete ALL doctors? '
+          'This action cannot be undone and will also delete all associated patients and tokens.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _storageService.deleteAllDoctors();
+        await _loadDoctors(); // Refresh doctors and patient counts
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('All doctors have been deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting patients: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,6 +166,14 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
+        actions: [
+          if (_doctors.isNotEmpty)
+            IconButton(
+              onPressed: _showDeleteAllDoctorsDialog,
+              icon: const Icon(Icons.delete_forever),
+              tooltip: 'Delete All Doctors',
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(

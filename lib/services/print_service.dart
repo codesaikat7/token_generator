@@ -214,29 +214,4 @@ class PrintService {
 
     return Uint8List.fromList(bytes);
   }
-
-  // Save print data to file for manual printing
-  Future<String> saveTokenPrintData(Token token, Doctor doctor) async {
-    try {
-      final bytes = await generateTokenPrintData(token, doctor);
-      // For now, we'll return a success message
-      // In a real implementation, you could save to file or share
-      return 'Token print data generated successfully';
-    } catch (e) {
-      return 'Error generating print data: $e';
-    }
-  }
-
-  // Save multiple tokens print data to file
-  Future<String> saveMultipleTokensPrintData(
-      List<Token> tokens, Doctor doctor) async {
-    try {
-      final bytes = await generateMultipleTokensPrintData(tokens, doctor);
-      // For now, we'll return a success message
-      // In a real implementation, you could save to file or share
-      return 'Multiple tokens print data generated successfully';
-    } catch (e) {
-      return 'Error generating print data: $e';
-    }
-  }
 }

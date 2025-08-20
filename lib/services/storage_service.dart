@@ -58,6 +58,25 @@ class StorageService extends ChangeNotifier {
     await deleteTokensByDoctor(doctorId);
   }
 
+  Future<void> deleteAllDoctors() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Get all doctors to delete their associated patients and tokens first
+    final doctors = await getDoctors();
+    
+    for (final doctor in doctors) {
+      // Delete all patients and tokens for each doctor
+      await deletePatientsByDoctor(doctor.id);
+      await deleteTokensByDoctor(doctor.id);
+    }
+
+    // Clear all doctors
+    await prefs.remove(_doctorsKey);
+
+    // Notify all patient count widgets to refresh
+    notifyPatientCountChanged();
+  }
+
   Future<void> _saveDoctors(List<Doctor> doctors) async {
     final prefs = await SharedPreferences.getInstance();
     final doctorsJson =
@@ -138,6 +157,27 @@ class StorageService extends ChangeNotifier {
     }
 
     // Note: No need to call notifyPatientCountChanged() here as deletePatient already does it
+  }
+
+  Future<void> deleteAllPatients() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Get all patients to delete their associated tokens first
+    final allPatientsJson = prefs.getStringList(_patientsKey) ?? [];
+    final allPatients = allPatientsJson
+        .map((json) => Patient.fromJson(jsonDecode(json)))
+        .toList();
+
+    // Delete all tokens associated with these patients
+    for (final patient in allPatients) {
+      await deleteTokensByPatient(patient.id);
+    }
+
+    // Clear all patients
+    await prefs.remove(_patientsKey);
+
+    // Notify all patient count widgets to refresh
+    notifyPatientCountChanged();
   }
 
   Future<void> _savePatients(List<Patient> patients) async {
