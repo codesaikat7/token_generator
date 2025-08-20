@@ -1,18 +1,49 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/token.dart';
 import '../models/doctor.dart';
 import '../services/print_service.dart';
+import '../services/bluetooth_print_service.dart';
+import '../widgets/bluetooth_printer_dialog.dart';
 
 class PrintPreviewScreen extends StatefulWidget {
-  final Token token;
+  final List<Token> tokens;
   final Doctor doctor;
+  final bool isBulkPrint;
 
   const PrintPreviewScreen({
-    Key? key,
-    required this.token,
+    super.key,
+    required this.tokens,
     required this.doctor,
-  }) : super(key: key);
+    this.isBulkPrint = false,
+  });
+
+  // Factory constructor for individual token printing
+  factory PrintPreviewScreen.single({
+    Key? key,
+    required Token token,
+    required Doctor doctor,
+  }) {
+    return PrintPreviewScreen(
+      key: key,
+      tokens: [token],
+      doctor: doctor,
+      isBulkPrint: false,
+    );
+  }
+
+  // Factory constructor for bulk token printing
+  factory PrintPreviewScreen.bulk({
+    Key? key,
+    required List<Token> tokens,
+    required Doctor doctor,
+  }) {
+    return PrintPreviewScreen(
+      key: key,
+      tokens: tokens,
+      doctor: doctor,
+      isBulkPrint: true,
+    );
+  }
 
   @override
   State<PrintPreviewScreen> createState() => _PrintPreviewScreenState();
@@ -20,14 +51,38 @@ class PrintPreviewScreen extends StatefulWidget {
 
 class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
   final PrintService _printService = PrintService();
-  Uint8List? _printData;
+  final BluetoothPrintService _bluetoothService = BluetoothPrintService();
   bool _isLoading = true;
+  bool _isPrinting = false;
   String? _error;
+  bool _isPrinterConnected = false;
 
   @override
   void initState() {
     super.initState();
     _generatePrintData();
+    // Check current printer connection status instead of clearing it
+    _checkPrinterConnection();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check printer connection status when dependencies change (e.g., screen comes into focus)
+    _checkPrinterConnection();
+  }
+
+  void _checkPrinterConnection() {
+    final hasConnection = _bluetoothService.hasValidConnection;
+    debugPrint(
+        'PrintPreviewScreen: Checking printer connection - hasValidConnection: $hasConnection, current _isPrinterConnected: $_isPrinterConnected');
+
+    setState(() {
+      _isPrinterConnected = hasConnection;
+    });
+
+    debugPrint(
+        'PrintPreviewScreen: Updated _isPrinterConnected to: $_isPrinterConnected');
   }
 
   Future<void> _generatePrintData() async {
@@ -37,11 +92,8 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
         _error = null;
       });
 
-      final printData = await _printService.generateTokenPrintData(
-          widget.token, widget.doctor);
 
       setState(() {
-        _printData = printData;
         _isLoading = false;
       });
     } catch (e) {
@@ -60,6 +112,14 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
         title: const Text('Print Preview'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
+        actions: [
+          if (_isPrinterConnected)
+            IconButton(
+              onPressed: _showPrinterSelection,
+              icon: const Icon(Icons.bluetooth),
+              tooltip: 'Change Printer',
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -108,9 +168,11 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
                                 padding: const EdgeInsets.all(16),
                                 child: Column(
                                   children: [
-                                    const Text(
-                                      'Token Preview',
-                                      style: TextStyle(
+                                    Text(
+                                      widget.isBulkPrint
+                                          ? 'All Tokens Preview'
+                                          : 'Token Preview',
+                                      style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.deepPurple,
@@ -127,69 +189,136 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
                                       ),
                                       child: Column(
                                         children: [
-                                          // Top border
-                                          Text(
-                                            '==============================',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontFamily: 'monospace',
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
+                                          if (widget.isBulkPrint) ...[
+                                            // Show all tokens in individual format
+                                            ...widget.tokens.map((token) =>
+                                                Column(
+                                                  children: [
+                                                    // Top border
+                                                    Text(
+                                                      '==============================',
+                                                      style: TextStyle(
+                                                        color: Colors.grey[600],
+                                                        fontFamily: 'monospace',
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 16),
 
-                                          // Date and time
-                                          Text(
-                                            _formatDateTime(
-                                                widget.token.generatedAt),
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
+                                                    // Date and time
+                                                    Text(
+                                                      _formatDateTime(
+                                                          token.generatedAt),
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 16),
 
-                                          // Doctor name
-                                          Text(
-                                            'DR ${widget.doctor.name.toUpperCase()}',
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
+                                                    // Doctor name
+                                                    Text(
+                                                      'DR ${widget.doctor.name.toUpperCase()}',
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 16),
 
-                                          // Patient name and token number
-                                          Text(
-                                            '${widget.token.patientName} ${widget.token.tokenNumber}',
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
+                                                    // Patient name and token number
+                                                    Text(
+                                                      '${token.patientName} ${token.tokenNumber}',
+                                                      style: const TextStyle(
+                                                        fontSize: 24,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 16),
 
-                                          // Instruction
-                                          Text(
-                                            'keep this till you are in clinic',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                              fontStyle: FontStyle.italic,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
+                                                    // Instruction
+                                                    Text(
+                                                      'keep this till you are in clinic',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.grey[600],
+                                                        fontStyle:
+                                                            FontStyle.italic,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 16),
 
-                                          // Bottom border
-                                          Text(
-                                            '==============================',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontFamily: 'monospace',
-                                              fontSize: 12,
+                                                    // Bottom border
+                                                    Text(
+                                                      '==============================',
+                                                      style: TextStyle(
+                                                        color: Colors.grey[600],
+                                                        fontFamily: 'monospace',
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 20),
+                                                  ],
+                                                )),
+                                          ] else ...[
+                                            // Show header and single token for individual mode
+                                            // Date and time
+                                            Text(
+                                              _formatDateTime(
+                                                  widget.tokens[0].generatedAt),
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
-                                          ),
+                                            const SizedBox(height: 16),
+
+                                            // Doctor name
+                                            Text(
+                                              'DR ${widget.doctor.name.toUpperCase()}',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+
+                                            // Show single token
+                                            Text(
+                                              '${widget.tokens[0].patientName} ${widget.tokens[0].tokenNumber}',
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+
+                                            // Instruction
+                                            Text(
+                                              'keep this till you are in clinic',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                                fontStyle: FontStyle.italic,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+
+                                            // Bottom border
+                                            Text(
+                                              '==============================',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontFamily: 'monospace',
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -209,26 +338,40 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Implement actual printing here
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Print functionality coming soon!'),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                    },
+                    onPressed: (_isPrinterConnected && !_isPrinting)
+                        ? _printToken
+                        : (_isPrinting ? null : _showPrinterSelection),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
+                      backgroundColor:
+                          _isPrinting ? Colors.grey[400] : Colors.deepPurple,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.print),
-                        SizedBox(width: 8),
-                        Text('Print Now'),
+                        if (_isPrinting)
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        else
+                          Icon(_isPrinterConnected
+                              ? Icons.print
+                              : Icons.bluetooth),
+                        const SizedBox(width: 8),
+                        Text(_isPrinting
+                            ? 'Printing...'
+                            : (_isPrinterConnected
+                                ? (widget.isBulkPrint
+                                    ? 'Print All Now'
+                                    : 'Print Now')
+                                : 'Select Printer')),
                       ],
                     ),
                   ),
@@ -260,5 +403,78 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
     final timeFormat =
         '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     return '$monthName ${dateTime.day}, ${dateTime.year} $timeFormat';
+  }
+
+
+  void _showPrinterSelection() {
+    showDialog(
+      context: context,
+      builder: (context) => BluetoothPrinterDialog(
+        onPrinterSelected: (device) async {
+          // Refresh the connection status after dialog closes
+          // Add a small delay to ensure the dialog state is fully processed
+          await Future.delayed(const Duration(milliseconds: 100));
+          _checkPrinterConnection();
+        },
+      ),
+    ).then((_) {
+      // Also check connection when dialog is dismissed (in case user just closes it)
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _checkPrinterConnection();
+      });
+    });
+  }
+
+  Future<void> _printToken() async {
+    setState(() {
+      _isPrinting = true;
+    });
+
+    try {
+      final success = widget.isBulkPrint
+          ? await _printService.printMultipleTokensViaBluetooth(
+              widget.tokens, widget.doctor)
+          : await _printService.printTokenViaBluetooth(
+              widget.tokens[0], widget.doctor);
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(widget.isBulkPrint
+                  ? 'All tokens printed successfully!'
+                  : 'Token printed successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(widget.isBulkPrint
+                  ? 'Failed to print tokens. Please try again.'
+                  : 'Failed to print token. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Print error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPrinting = false;
+        });
+      }
+    }
   }
 }

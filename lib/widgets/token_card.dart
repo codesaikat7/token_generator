@@ -67,7 +67,7 @@ class TokenCard extends StatelessWidget {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => PrintPreviewScreen(
+                    builder: (context) => PrintPreviewScreen.single(
                       token: token,
                       doctor: doctor,
                     ),

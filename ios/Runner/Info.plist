@@ -47,5 +47,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app uses Bluetooth to connect to thermal printers for printing tokens.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app uses Bluetooth to connect to thermal printers for printing tokens.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app requires location access to scan for nearby Bluetooth devices.</string>
 </dict>
 </plist>

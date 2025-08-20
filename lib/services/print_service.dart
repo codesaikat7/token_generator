@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 import 'package:esc_pos_utils/esc_pos_utils.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter/foundation.dart';
 import '../models/token.dart';
 import '../models/doctor.dart';
+import 'bluetooth_print_service.dart';
 
 class PrintService {
   // Generate print data for a token (for manual printing or sharing)
@@ -213,5 +216,52 @@ class PrintService {
     bytes += generator.cut();
 
     return Uint8List.fromList(bytes);
+  }
+
+  // Print a single token via Bluetooth
+  Future<bool> printTokenViaBluetooth(Token token, Doctor doctor) async {
+    try {
+      final printData = await generateTokenPrintData(token, doctor);
+      final bluetoothService = BluetoothPrintService();
+
+      if (!bluetoothService.isConnected) {
+        throw Exception('No Bluetooth printer connected');
+      }
+
+      return await bluetoothService.printData(printData);
+    } catch (e) {
+      debugPrint('Bluetooth printing failed: $e');
+      return false;
+    }
+  }
+
+  // Print multiple tokens via Bluetooth
+  Future<bool> printMultipleTokensViaBluetooth(
+      List<Token> tokens, Doctor doctor) async {
+    try {
+      final printData = await generateMultipleTokensPrintData(tokens, doctor);
+      final bluetoothService = BluetoothPrintService();
+
+      if (!bluetoothService.isConnected) {
+        throw Exception('No Bluetooth printer connected');
+      }
+
+      return await bluetoothService.printData(printData);
+    } catch (e) {
+      debugPrint('Bluetooth printing failed: $e');
+      return false;
+    }
+  }
+
+  // Get the currently connected Bluetooth printer
+  BluetoothDevice? getConnectedPrinter() {
+    final bluetoothService = BluetoothPrintService();
+    return bluetoothService.connectedDevice;
+  }
+
+  // Check if a Bluetooth printer is connected
+  bool isBluetoothPrinterConnected() {
+    final bluetoothService = BluetoothPrintService();
+    return bluetoothService.isConnected;
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/doctor.dart';
 import '../models/patient.dart';
@@ -7,7 +8,7 @@ import '../widgets/add_patient_dialog.dart';
 import '../widgets/patient_card.dart';
 import '../widgets/token_card.dart';
 
-import '../screens/print_all_tokens_screen.dart';
+import '../screens/print_preview_screen.dart';
 
 class DoctorDetailScreen extends StatefulWidget {
   final Doctor doctor;
@@ -32,7 +33,10 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
 
   // Method to register refresh callbacks
   void _registerRefreshCallback(Function() callback) {
-    _refreshCallbacks.add(callback);
+    // Prevent duplicate callbacks
+    if (!_refreshCallbacks.contains(callback)) {
+      _refreshCallbacks.add(callback);
+    }
   }
 
   // Method to unregister refresh callbacks
@@ -48,9 +52,28 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
           _tokens.any((token) => token.patientId == patient.id);
     }
 
-    // Then notify widgets to refresh
+    // Then notify widgets to refresh, but only if they're still valid
+    final validCallbacks = <Function()>[];
     for (final callback in _refreshCallbacks) {
-      callback();
+      try {
+        // Try to call the callback, but catch any errors
+        callback();
+        // If successful, keep the callback
+        validCallbacks.add(callback);
+      } catch (e) {
+        // If callback fails (e.g., widget is disposed), remove it
+        debugPrint('Warning: Removing invalid refresh callback: $e');
+        // Don't add to validCallbacks, effectively removing it
+      }
+    }
+
+    // Update the callbacks list to only keep valid ones
+    _refreshCallbacks.clear();
+    _refreshCallbacks.addAll(validCallbacks);
+
+    // Force a rebuild to update the UI with new token status
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -121,14 +144,6 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
       try {
         await _storageService.addPatient(result);
         await _loadData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Patient added successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -172,7 +187,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
       if (mounted) {
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => PrintAllTokensScreen(
+            builder: (context) => PrintPreviewScreen.bulk(
               tokens: _tokens,
               doctor: widget.doctor,
             ),

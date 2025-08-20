@@ -180,25 +180,25 @@ class _HomeScreenState extends State<HomeScreen> {
               child: CircularProgressIndicator(),
             )
           : _doctors.isEmpty
-              ? Center(
+              ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.medical_services_outlined,
                         size: 80,
                         color: Colors.grey,
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
+                      SizedBox(height: 16),
+                      Text(
                         'No doctors added yet',
                         style: TextStyle(
                           fontSize: 18,
                           color: Colors.grey,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
+                      SizedBox(height: 8),
+                      Text(
                         'Add your first doctor to start managing patients and tokens',
                         style: TextStyle(
                           fontSize: 14,

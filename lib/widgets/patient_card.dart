@@ -44,8 +44,10 @@ class _PatientCardState extends State<PatientCard> {
 
     // Register the refresh callback to update from parent
     widget.onRegisterRefresh(() {
-      _hasToken = widget.hasToken;
-      setState(() {});
+      if (mounted) {
+        _hasToken = widget.hasToken;
+        setState(() {});
+      }
     });
   }
 
@@ -83,13 +85,15 @@ class _PatientCardState extends State<PatientCard> {
   void didUpdateWidget(PatientCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Update token status when the widget is updated
-    if (oldWidget.patient.id != widget.patient.id) {
-      _hasToken = widget.hasToken;
-      setState(() {});
-    } else if (oldWidget.hasToken != widget.hasToken) {
-      // Token status changed
-      _hasToken = widget.hasToken;
-      setState(() {});
+    if (mounted) {
+      if (oldWidget.patient.id != widget.patient.id) {
+        _hasToken = widget.hasToken;
+        setState(() {});
+      } else if (oldWidget.hasToken != widget.hasToken) {
+        // Token status changed
+        _hasToken = widget.hasToken;
+        setState(() {});
+      }
     }
   }
 
