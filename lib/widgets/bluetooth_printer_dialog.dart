@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../services/bluetooth_print_service.dart';
@@ -50,6 +49,8 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
   }
 
   void _startScan() {
+    if (!mounted) return;
+
     setState(() {
       _isScanning = true;
       _devices.clear();
@@ -57,9 +58,13 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
     });
 
     _bluetoothService.startScan().listen((devices) {
-      setState(() {
-        _devices = devices;
-      });
+      if (mounted) {
+        setState(() {
+          // Devices are already filtered in the service, just sort them
+          _devices = devices.toList()
+            ..sort((a, b) => a.platformName.compareTo(b.platformName));
+        });
+      }
     });
 
     // Stop scanning after 10 seconds
@@ -74,6 +79,8 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
   }
 
   Future<void> _connectToPrinter(BluetoothDevice device) async {
+    if (!mounted) return;
+
     debugPrint('Connect button clicked for device: ${device.remoteId.str}');
     debugPrint('Current connecting device: ${_connectingDevice?.remoteId.str}');
     debugPrint('Current selected device: ${_selectedDevice?.remoteId.str}');
@@ -91,39 +98,45 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
     }
 
     debugPrint('Setting connecting device to: ${device.remoteId.str}');
-    setState(() {
-      _connectingDevice = device;
-      _error = null;
-    });
+    if (mounted) {
+      setState(() {
+        _connectingDevice = device;
+        _error = null;
+      });
+    }
 
     try {
       bool success = await _bluetoothService.connectToDevice(device);
-      if (success) {
-        setState(() {
-          _selectedDevice = device;
-          _connectingDevice = null;
-        });
+      if (mounted) {
+        if (success) {
+          setState(() {
+            _selectedDevice = device;
+            _connectingDevice = null;
+          });
 
-        // For testing: keep dialog open to show connected state
-        // Comment out the auto-close for testing multiple printer connections
-        // widget.onPrinterSelected(device);
-        // Navigator.of(context).pop();
-      } else {
+          // Keep dialog open to show connected state and allow manual selection
+          // widget.onPrinterSelected(device);
+          // Navigator.of(context).pop();
+        } else {
+          setState(() {
+            _error = 'Failed to connect to printer';
+            _connectingDevice = null;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _error = 'Failed to connect to printer';
+          _error = 'Connection error: $e';
           _connectingDevice = null;
         });
       }
-    } catch (e) {
-      setState(() {
-        _error = 'Connection error: $e';
-        _connectingDevice = null;
-      });
     }
   }
 
   @override
   void dispose() {
+    // Cancel any ongoing operations
     _bluetoothService.stopScan();
     super.dispose();
   }
@@ -182,6 +195,8 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                 ],
               ),
               SizedBox(height: isLandscape ? 12 : 16),
+
+              SizedBox(height: isLandscape ? 8 : 12),
 
               // Scan button
               SizedBox(
@@ -309,14 +324,20 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                                       : 16, // Smaller text in landscape
                                 ),
                               ),
-                              subtitle: Text(
-                                device.remoteId.str,
-                                style: TextStyle(
-                                  fontSize: isLandscape
-                                      ? 10
-                                      : 12, // Smaller text in landscape
-                                  fontFamily: 'monospace',
-                                ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(height: 4),
+                                  Text(
+                                    device.remoteId.str,
+                                    style: TextStyle(
+                                      fontSize: isLandscape
+                                          ? 10
+                                          : 12, // Smaller text in landscape
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                ],
                               ),
                               trailing: _connectingDevice?.remoteId.str ==
                                       device.remoteId.str
@@ -414,7 +435,7 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                 ),
               ),
 
-              // Manual close button for testing
+              // Use This Printer button (when a device is connected)
               if (_selectedDevice != null)
                 Container(
                   width: double.infinity,

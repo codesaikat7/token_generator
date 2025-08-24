@@ -92,7 +92,6 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
         _error = null;
       });
 
-
       setState(() {
         _isLoading = false;
       });
@@ -405,7 +404,6 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
     return '$monthName ${dateTime.day}, ${dateTime.year} $timeFormat';
   }
 
-
   void _showPrinterSelection() {
     showDialog(
       context: context,
@@ -431,11 +429,17 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
     });
 
     try {
+      // Add a small delay to ensure the UI updates before starting print
+      await Future.delayed(const Duration(milliseconds: 100));
+
       final success = widget.isBulkPrint
           ? await _printService.printMultipleTokensViaBluetooth(
               widget.tokens, widget.doctor)
           : await _printService.printTokenViaBluetooth(
               widget.tokens[0], widget.doctor);
+
+      // Add a small delay to ensure printing completes
+      await Future.delayed(const Duration(milliseconds: 500));
 
       if (success) {
         if (mounted) {
@@ -453,8 +457,8 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(widget.isBulkPrint
-                  ? 'Failed to print tokens. Please try again.'
-                  : 'Failed to print token. Please try again.'),
+                  ? 'Failed to print tokens. Please check printer connection and try again.'
+                  : 'Failed to print token. Please check printer connection and try again.'),
               backgroundColor: Colors.red,
             ),
           );

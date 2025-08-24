@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:esc_pos_utils/esc_pos_utils.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +11,9 @@ class PrintService {
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm80, profile);
     List<int> bytes = [];
+
+    // Initialize printer - essential for thermal printers
+    bytes += generator.reset(); // Reset printer to default state
 
     // Top border
     bytes += generator.text('==============================',
@@ -98,11 +100,14 @@ class PrintService {
           align: PosAlign.center,
         ));
 
+    // Essential thermal printer commands
+    bytes += generator.feed(2); // Feed paper 2 lines
     bytes +=
-        generator.text('', styles: const PosStyles(height: PosTextSize.size1));
+        generator.text(''); // Empty line to ensure print buffer is processed
+    bytes += generator.cut(); // Cut paper (if supported)
 
-    // Cut the paper
-    bytes += generator.cut();
+    // Add final paper feed to ensure printing completes
+    bytes += generator.feed(1);
 
     return Uint8List.fromList(bytes);
   }
@@ -113,6 +118,9 @@ class PrintService {
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm80, profile);
     List<int> bytes = [];
+
+    // Initialize printer - essential for thermal printers
+    bytes += generator.reset(); // Reset printer to default state
 
     // Print each token individually in the same format
     for (int i = 0; i < tokens.length; i++) {
@@ -212,8 +220,14 @@ class PrintService {
       }
     }
 
-    // Cut the paper after all tokens
-    bytes += generator.cut();
+    // Essential thermal printer commands for multiple tokens
+    bytes += generator.feed(2); // Feed paper 2 lines
+    bytes +=
+        generator.text(''); // Empty line to ensure print buffer is processed
+    bytes += generator.cut(); // Cut paper after all tokens
+
+    // Add final paper feed to ensure printing completes
+    bytes += generator.feed(1);
 
     return Uint8List.fromList(bytes);
   }
@@ -221,14 +235,34 @@ class PrintService {
   // Print a single token via Bluetooth
   Future<bool> printTokenViaBluetooth(Token token, Doctor doctor) async {
     try {
+      debugPrint('Starting Bluetooth print for token: ${token.tokenNumber}');
+
       final printData = await generateTokenPrintData(token, doctor);
+      debugPrint('Generated print data: ${printData.length} bytes');
+
       final bluetoothService = BluetoothPrintService();
 
       if (!bluetoothService.isConnected) {
-        throw Exception('No Bluetooth printer connected');
+        debugPrint('Bluetooth print failed: No printer connected');
+        return false;
       }
 
-      return await bluetoothService.printData(printData);
+      if (!bluetoothService.hasValidConnection) {
+        debugPrint('Bluetooth print failed: Invalid connection state');
+        return false;
+      }
+
+      // Check if printer is ready before printing
+      if (!await bluetoothService.isPrinterReady()) {
+        debugPrint('Bluetooth print failed: Printer not ready');
+        return false;
+      }
+
+      debugPrint('Sending data to Bluetooth printer...');
+      final result = await bluetoothService.printData(printData);
+      debugPrint('Bluetooth print result: $result');
+
+      return result;
     } catch (e) {
       debugPrint('Bluetooth printing failed: $e');
       return false;
@@ -239,14 +273,34 @@ class PrintService {
   Future<bool> printMultipleTokensViaBluetooth(
       List<Token> tokens, Doctor doctor) async {
     try {
+      debugPrint('Starting Bluetooth print for ${tokens.length} tokens');
+
       final printData = await generateMultipleTokensPrintData(tokens, doctor);
+      debugPrint('Generated print data: ${printData.length} bytes');
+
       final bluetoothService = BluetoothPrintService();
 
       if (!bluetoothService.isConnected) {
-        throw Exception('No Bluetooth printer connected');
+        debugPrint('Bluetooth print failed: No printer connected');
+        return false;
       }
 
-      return await bluetoothService.printData(printData);
+      if (!bluetoothService.hasValidConnection) {
+        debugPrint('Bluetooth print failed: Invalid connection state');
+        return false;
+      }
+
+      // Check if printer is ready before printing
+      if (!await bluetoothService.isPrinterReady()) {
+        debugPrint('Bluetooth print failed: Printer not ready');
+        return false;
+      }
+
+      debugPrint('Sending data to Bluetooth printer...');
+      final result = await bluetoothService.printData(printData);
+      debugPrint('Bluetooth print result: $result');
+
+      return result;
     } catch (e) {
       debugPrint('Bluetooth printing failed: $e');
       return false;
