@@ -1,11 +1,11 @@
 # QueueMed
 
-A Flutter app for generating patient queue tokens in a clinic. QueueMed automatically resets token numbers daily and stores all data locally using SharedPreferences.
+A Flutter app for generating patient queue tokens in a clinic. QueueMed uses continuous token numbering and stores all data locally using SharedPreferences.
 
 ## Features
 
 - **Doctor Management**: Add, view, and delete doctors with their specializations
-- **Daily Token Generation**: Automatically resets token numbers at midnight
+- **Continuous Token Generation**: Token numbers always increment from the highest existing number
 - **Local Storage**: All data is stored locally using SharedPreferences (no backend required)
 - **Token History**: Keeps track of generated tokens with timestamps
 - **Modern UI**: Clean, intuitive interface with Material Design 3
@@ -13,16 +13,16 @@ A Flutter app for generating patient queue tokens in a clinic. QueueMed automati
 
 ## How It Works
 
-1. **Daily Reset**: The app checks if the current date is different from the last token generation date
-2. **Token Increment**: If it's the same day, tokens increment sequentially
-3. **Automatic Reset**: If it's a new day, the token counter resets to 1
+1. **Continuous Numbering**: Token numbers always increment from the highest existing number
+2. **Global Counter**: No daily reset - tokens continue from where they left off
+3. **Sequential Generation**: Each new token gets the next available number
 4. **Local Persistence**: All data is stored locally and persists between app sessions
 
 ## App Flow
 
 1. **Setup**: Clinic staff opens the app and adds doctors
-2. **Daily Operation**: Staff generates tokens for patients throughout the day
-3. **Automatic Reset**: At midnight, all token counters automatically reset
+2. **Continuous Operation**: Staff generates tokens for patients throughout the day
+3. **Sequential Numbering**: Token numbers continue incrementing without reset
 4. **Data Persistence**: All information is saved locally and available offline
 
 ## Technical Details
@@ -116,11 +116,11 @@ The app uses SharedPreferences to store:
 
 ## Features in Detail
 
-### Daily Token Reset
+### Continuous Token Numbering
 
-- Tokens automatically reset to 1 at midnight
-- No manual intervention required
-- Date tracking ensures accurate daily counting
+- Tokens always increment from the highest existing number
+- No daily reset - continuous numbering across all days
+- Global counter ensures unique token numbers
 
 ### Token History
 

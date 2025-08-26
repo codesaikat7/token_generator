@@ -60,10 +60,10 @@ class StorageService extends ChangeNotifier {
 
   Future<void> deleteAllDoctors() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Get all doctors to delete their associated patients and tokens first
     final doctors = await getDoctors();
-    
+
     for (final doctor in doctors) {
       // Delete all patients and tokens for each doctor
       await deletePatientsByDoctor(doctor.id);
@@ -161,7 +161,7 @@ class StorageService extends ChangeNotifier {
 
   Future<void> deleteAllPatients() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Get all patients to delete their associated tokens first
     final allPatientsJson = prefs.getStringList(_patientsKey) ?? [];
     final allPatients = allPatientsJson
@@ -199,26 +199,10 @@ class StorageService extends ChangeNotifier {
       throw Exception('A token has already been generated for this patient');
     }
 
-    final today = DateTime.now();
-
-    // Filter tokens for today
-    final todayTokens = tokens.where((token) {
-      final tokenDate = DateTime(
-        token.generatedAt.year,
-        token.generatedAt.month,
-        token.generatedAt.day,
-      );
-      final todayDate = DateTime(today.year, today.month, today.day);
-      return tokenDate.isAtSameMomentAs(todayDate);
-    }).toList();
-
-    // Generate next token number
-    final nextTokenNumber = todayTokens.isEmpty
+    // Generate next token number - always use the highest existing token number + 1
+    final nextTokenNumber = tokens.isEmpty
         ? 1
-        : todayTokens
-                .map((t) => t.tokenNumber)
-                .reduce((a, b) => a > b ? a : b) +
-            1;
+        : tokens.map((t) => t.tokenNumber).reduce((a, b) => a > b ? a : b) + 1;
 
     // Create new token
     final newToken = Token(
@@ -238,7 +222,7 @@ class StorageService extends ChangeNotifier {
     await _saveAllTokens(allTokens);
 
     // Update doctor's last token information
-    await _updateDoctorLastToken(doctorId, nextTokenNumber, today);
+    await _updateDoctorLastToken(doctorId, nextTokenNumber, DateTime.now());
 
     return nextTokenNumber;
   }

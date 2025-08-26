@@ -26,7 +26,8 @@ class DoctorCard extends StatelessWidget {
           if (onTap != null) {
             onTap!();
           }
-          await Navigator.of(context).push(
+          final navigator = Navigator.of(context);
+          await navigator.push(
             MaterialPageRoute(
               builder: (context) => DoctorDetailScreen(doctor: doctor),
             ),
@@ -78,9 +79,9 @@ class DoctorCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Last Token:',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey,
                           ),
@@ -115,7 +116,7 @@ class DoctorCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      doctor.isToday ? 'Today' : 'Previous Day',
+                      doctor.dateDisplay,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -130,9 +131,10 @@ class DoctorCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      border:
+                          Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

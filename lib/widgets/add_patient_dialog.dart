@@ -46,11 +46,11 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Title
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.person_add, color: Colors.green),
-                    const SizedBox(width: 12),
-                    const Expanded(
+                    Icon(Icons.person_add, color: Colors.green),
+                    SizedBox(width: 12),
+                    Expanded(
                       child: Text(
                         'Add New Patient',
                         style: TextStyle(

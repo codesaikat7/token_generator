@@ -1,5 +1,5 @@
 import 'package:esc_pos_utils/esc_pos_utils.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:flutter/foundation.dart';
 import '../models/token.dart';
 import '../models/doctor.dart';
@@ -66,14 +66,23 @@ class PrintService {
           align: PosAlign.center,
         ));
 
+    // Patient name
+    bytes += generator.text(token.patientName,
+        styles: const PosStyles(
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+          bold: true,
+          align: PosAlign.center,
+        ));
+
     bytes +=
         generator.text('', styles: const PosStyles(height: PosTextSize.size1));
 
-    // Patient name and token number
-    bytes += generator.text('${token.patientName} ${token.tokenNumber}',
+    // Serial number
+    bytes += generator.text('Serial No - ${token.tokenNumber}',
         styles: const PosStyles(
-          height: PosTextSize.size3,
-          width: PosTextSize.size3,
+          height: PosTextSize.size1,
+          width: PosTextSize.size1,
           bold: true,
           align: PosAlign.center,
         ));
@@ -177,14 +186,23 @@ class PrintService {
             align: PosAlign.center,
           ));
 
+      // Patient name
+      bytes += generator.text(token.patientName,
+          styles: const PosStyles(
+            height: PosTextSize.size2,
+            width: PosTextSize.size2,
+            bold: true,
+            align: PosAlign.center,
+          ));
+
       bytes += generator.text('',
           styles: const PosStyles(height: PosTextSize.size1));
 
-      // Patient name and token number
-      bytes += generator.text('${token.patientName} ${token.tokenNumber}',
+      // Serial number
+      bytes += generator.text('Serial No - ${token.tokenNumber}',
           styles: const PosStyles(
-            height: PosTextSize.size3,
-            width: PosTextSize.size3,
+            height: PosTextSize.size1,
+            width: PosTextSize.size1,
             bold: true,
             align: PosAlign.center,
           ));
@@ -235,36 +253,48 @@ class PrintService {
   // Print a single token via Bluetooth
   Future<bool> printTokenViaBluetooth(Token token, Doctor doctor) async {
     try {
-      debugPrint('Starting Bluetooth print for token: ${token.tokenNumber}');
+      debugPrint('=== STARTING BLUETOOTH TOKEN PRINT ===');
+      debugPrint('🔢 Token: ${token.tokenNumber}');
+      debugPrint('👤 Patient: ${token.patientName}');
+      debugPrint('👨‍⚕️ Doctor: ${doctor.name}');
+      debugPrint('📅 Generated: ${token.generatedAt}');
 
       final printData = await generateTokenPrintData(token, doctor);
-      debugPrint('Generated print data: ${printData.length} bytes');
+      debugPrint('📊 Generated print data: ${printData.length} bytes');
 
       final bluetoothService = BluetoothPrintService();
 
       if (!bluetoothService.isConnected) {
-        debugPrint('Bluetooth print failed: No printer connected');
+        debugPrint('❌ Bluetooth print failed: No printer connected');
         return false;
       }
 
       if (!bluetoothService.hasValidConnection) {
-        debugPrint('Bluetooth print failed: Invalid connection state');
+        debugPrint('❌ Bluetooth print failed: Invalid connection state');
         return false;
       }
 
       // Check if printer is ready before printing
       if (!await bluetoothService.isPrinterReady()) {
-        debugPrint('Bluetooth print failed: Printer not ready');
+        debugPrint('❌ Bluetooth print failed: Printer not ready');
         return false;
       }
 
-      debugPrint('Sending data to Bluetooth printer...');
+      debugPrint('🚀 Sending data to Bluetooth printer...');
       final result = await bluetoothService.printData(printData);
-      debugPrint('Bluetooth print result: $result');
+      debugPrint('📊 Bluetooth print result: $result');
 
+      if (result) {
+        debugPrint('✅ Bluetooth token print completed successfully!');
+      } else {
+        debugPrint('❌ Bluetooth token print failed!');
+      }
+
+      debugPrint('=== BLUETOOTH TOKEN PRINT COMPLETED ===');
       return result;
     } catch (e) {
-      debugPrint('Bluetooth printing failed: $e');
+      debugPrint('💥 Bluetooth printing failed with error: $e');
+      debugPrint('=== BLUETOOTH TOKEN PRINT FAILED ===');
       return false;
     }
   }
@@ -273,36 +303,48 @@ class PrintService {
   Future<bool> printMultipleTokensViaBluetooth(
       List<Token> tokens, Doctor doctor) async {
     try {
-      debugPrint('Starting Bluetooth print for ${tokens.length} tokens');
+      debugPrint('=== STARTING BLUETOOTH MULTIPLE TOKENS PRINT ===');
+      debugPrint('📊 Number of tokens: ${tokens.length}');
+      debugPrint('👨‍⚕️ Doctor: ${doctor.name}');
+      debugPrint(
+          '🔢 Token range: ${tokens.first.tokenNumber} - ${tokens.last.tokenNumber}');
 
       final printData = await generateMultipleTokensPrintData(tokens, doctor);
-      debugPrint('Generated print data: ${printData.length} bytes');
+      debugPrint('📊 Generated print data: ${printData.length} bytes');
 
       final bluetoothService = BluetoothPrintService();
 
       if (!bluetoothService.isConnected) {
-        debugPrint('Bluetooth print failed: No printer connected');
+        debugPrint('❌ Bluetooth print failed: No printer connected');
         return false;
       }
 
       if (!bluetoothService.hasValidConnection) {
-        debugPrint('Bluetooth print failed: Invalid connection state');
+        debugPrint('❌ Bluetooth print failed: Invalid connection state');
         return false;
       }
 
       // Check if printer is ready before printing
       if (!await bluetoothService.isPrinterReady()) {
-        debugPrint('Bluetooth print failed: Printer not ready');
+        debugPrint('❌ Bluetooth print failed: Printer not ready');
         return false;
       }
 
-      debugPrint('Sending data to Bluetooth printer...');
+      debugPrint('🚀 Sending data to Bluetooth printer...');
       final result = await bluetoothService.printData(printData);
-      debugPrint('Bluetooth print result: $result');
+      debugPrint('📊 Bluetooth print result: $result');
 
+      if (result) {
+        debugPrint('✅ Bluetooth multiple tokens print completed successfully!');
+      } else {
+        debugPrint('❌ Bluetooth multiple tokens print failed!');
+      }
+
+      debugPrint('=== BLUETOOTH MULTIPLE TOKENS PRINT COMPLETED ===');
       return result;
     } catch (e) {
-      debugPrint('Bluetooth printing failed: $e');
+      debugPrint('💥 Bluetooth printing failed with error: $e');
+      debugPrint('=== BLUETOOTH MULTIPLE TOKENS PRINT FAILED ===');
       return false;
     }
   }

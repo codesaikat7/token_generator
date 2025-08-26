@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import '../services/bluetooth_print_service.dart';
 
 class BluetoothPrinterDialog extends StatefulWidget {
   final Function(BluetoothDevice) onPrinterSelected;
 
   const BluetoothPrinterDialog({
-    Key? key,
+    super.key,
     required this.onPrinterSelected,
-  }) : super(key: key);
+  });
 
   @override
   State<BluetoothPrinterDialog> createState() => _BluetoothPrinterDialogState();
@@ -18,8 +18,7 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
   final BluetoothPrintService _bluetoothService = BluetoothPrintService();
   List<BluetoothDevice> _devices = [];
   bool _isScanning = false;
-  BluetoothDevice?
-      _connectingDevice; // Track which specific device is connecting
+  BluetoothDevice? _connectingDevice;
   String? _error;
   BluetoothDevice? _selectedDevice;
 
@@ -60,9 +59,7 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
     _bluetoothService.startScan().listen((devices) {
       if (mounted) {
         setState(() {
-          // Devices are already filtered in the service, just sort them
-          _devices = devices.toList()
-            ..sort((a, b) => a.platformName.compareTo(b.platformName));
+          _devices = devices.toList();
         });
       }
     });
@@ -81,9 +78,9 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
   Future<void> _connectToPrinter(BluetoothDevice device) async {
     if (!mounted) return;
 
-    debugPrint('Connect button clicked for device: ${device.remoteId.str}');
-    debugPrint('Current connecting device: ${_connectingDevice?.remoteId.str}');
-    debugPrint('Current selected device: ${_selectedDevice?.remoteId.str}');
+    debugPrint('Connect button clicked for device: ${device.address}');
+    debugPrint('Current connecting device: ${_connectingDevice?.address}');
+    debugPrint('Current selected device: ${_selectedDevice?.address}');
 
     // Prevent connecting if already connecting to another device
     if (_connectingDevice != null) {
@@ -92,12 +89,12 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
     }
 
     // Prevent connecting if this device is already connected
-    if (_selectedDevice?.remoteId.str == device.remoteId.str) {
+    if (_selectedDevice?.address == device.address) {
       debugPrint('Device already connected, returning');
       return;
     }
 
-    debugPrint('Setting connecting device to: ${device.remoteId.str}');
+    debugPrint('Setting connecting device to: ${device.address}');
     if (mounted) {
       setState(() {
         _connectingDevice = device;
@@ -106,39 +103,35 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
     }
 
     try {
+      debugPrint('Attempting to connect to device: ${device.address}');
       bool success = await _bluetoothService.connectToDevice(device);
+
       if (mounted) {
         if (success) {
           setState(() {
             _selectedDevice = device;
             _connectingDevice = null;
+            _error = null;
           });
-
-          // Keep dialog open to show connected state and allow manual selection
-          // widget.onPrinterSelected(device);
-          // Navigator.of(context).pop();
+          debugPrint('Successfully connected to device: ${device.address}');
         } else {
           setState(() {
-            _error = 'Failed to connect to printer';
             _connectingDevice = null;
+            _error =
+                'Failed to connect to ${device.name ?? "Unknown Device"}. Please try again.';
           });
+          debugPrint('Failed to connect to device: ${device.address}');
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Connection error: $e';
           _connectingDevice = null;
+          _error = 'Connection error: $e';
         });
       }
+      debugPrint('Exception during connection: $e');
     }
-  }
-
-  @override
-  void dispose() {
-    // Cancel any ongoing operations
-    _bluetoothService.stopScan();
-    super.dispose();
   }
 
   @override
@@ -172,7 +165,7 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                     CrossAxisAlignment.center, // Ensure vertical alignment
                 children: [
                   // Title - flexible to adapt to available space
-                  Expanded(
+                  const Expanded(
                     child: Text(
                       'Select Printer',
                       style: TextStyle(
@@ -264,8 +257,8 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                             SizedBox(height: isLandscape ? 12 : 16),
                             Text(
                               _isScanning
-                                  ? 'Searching for printers...'
-                                  : 'No printers found',
+                                  ? 'Searching for SPP printers...'
+                                  : 'No SPP printers found',
                               style: TextStyle(
                                 fontSize: isLandscape
                                     ? 14
@@ -276,7 +269,7 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                             if (!_isScanning) ...[
                               SizedBox(height: isLandscape ? 6 : 8),
                               Text(
-                                'Make sure your thermal printer is turned on and discoverable',
+                                'Make sure your thermal printer is paired with your device first',
                                 style: TextStyle(
                                   fontSize: isLandscape
                                       ? 12
@@ -293,8 +286,8 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                         itemCount: _devices.length,
                         itemBuilder: (context, index) {
                           final device = _devices[index];
-                          final isSelected = _selectedDevice?.remoteId.str ==
-                              device.remoteId.str;
+                          final isSelected =
+                              _selectedDevice?.address == device.address;
 
                           return Card(
                             margin: EdgeInsets.only(
@@ -313,7 +306,7 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                                     : 24, // Smaller icon in landscape
                               ),
                               title: Text(
-                                _bluetoothService.getDeviceDisplayName(device),
+                                device.name ?? 'Unknown Device',
                                 style: TextStyle(
                                   fontWeight: isSelected
                                       ? FontWeight.bold
@@ -327,9 +320,9 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  SizedBox(height: 4),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    device.remoteId.str,
+                                    device.address ?? 'Unknown Address',
                                     style: TextStyle(
                                       fontSize: isLandscape
                                           ? 10
@@ -339,8 +332,8 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                                   ),
                                 ],
                               ),
-                              trailing: _connectingDevice?.remoteId.str ==
-                                      device.remoteId.str
+                              trailing: _connectingDevice?.address ==
+                                      device.address
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
@@ -390,17 +383,17 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                                           ),
                                           child: const Text('Connect'),
                                         ),
-                              onTap: (_connectingDevice?.remoteId.str ==
-                                      device.remoteId.str)
-                                  ? null
-                                  : () => _connectToPrinter(device),
+                              onTap:
+                                  (_connectingDevice?.address == device.address)
+                                      ? null
+                                      : () => _connectToPrinter(device),
                             ),
                           );
                         },
                       ),
               ),
 
-              SizedBox(height: isLandscape ? 12 : 16),
+              const SizedBox(height: 16),
 
               // Help text
               Container(
@@ -422,7 +415,7 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                     SizedBox(width: isLandscape ? 6 : 8),
                     Expanded(
                       child: Text(
-                        'Make sure your thermal printer is turned on, has Bluetooth enabled, and is in pairing mode.',
+                        'SPP devices must be paired first. If you don\'t see your printer, pair it in Bluetooth settings.',
                         style: TextStyle(
                           fontSize: isLandscape
                               ? 10
@@ -449,7 +442,7 @@ class _BluetoothPrinterDialogState extends State<BluetoothPrinterDialog> {
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,
                     ),
-                    child: Text('Use This Printer'),
+                    child: const Text('Use This Printer'),
                   ),
                 ),
             ],

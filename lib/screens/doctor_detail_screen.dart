@@ -172,12 +172,14 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
 
   Future<void> _printAllTokens() async {
     if (_tokens.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No tokens to print'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No tokens to print'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
@@ -299,6 +301,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
           ),
           TextButton(
             onPressed: () async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
               Navigator.of(context).pop(); // Close dialog
               try {
                 await _storageService.resetTokensByDoctor(widget.doctor.id);
@@ -306,16 +309,18 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
                 // Notify PatientCard widgets to refresh their token status
                 if (mounted) {
                   _notifyPatientCardsToRefresh();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All tokens reset successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  if (mounted) {
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('All tokens reset successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text('Error resetting tokens: ${e.toString()}'),
                       backgroundColor: Colors.red,
@@ -336,9 +341,20 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete All Patients'),
-        content: Text(
-          'Are you sure you want to delete ALL patients for Dr. ${widget.doctor.name}? '
-          'This action cannot be undone and will also delete all associated tokens.',
+        content: Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(
+                  text: 'Are you sure you want to delete all patients for '),
+              TextSpan(
+                text: 'Dr. ${widget.doctor.name}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const TextSpan(
+                  text:
+                      ' ? This action cannot be undone and will also delete all associated tokens.'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -347,13 +363,14 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
           ),
           TextButton(
             onPressed: () async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
               Navigator.of(context).pop(); // Close dialog
               try {
                 await _storageService.deletePatientsByDoctor(widget.doctor.id);
                 await _loadData();
 
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('All patients deleted successfully!'),
                       backgroundColor: Colors.green,
@@ -362,7 +379,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text('Error deleting patients: ${e.toString()}'),
                       backgroundColor: Colors.red,

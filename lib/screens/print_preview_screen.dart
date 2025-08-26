@@ -225,15 +225,26 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
                                                             FontWeight.bold,
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 16),
+                                                    const SizedBox(height: 8),
 
-                                                    // Patient name and token number
+                                                    // Patient name
                                                     Text(
-                                                      '${token.patientName} ${token.tokenNumber}',
+                                                      token.patientName,
                                                       style: const TextStyle(
-                                                        fontSize: 24,
+                                                        fontSize: 18,
                                                         fontWeight:
                                                             FontWeight.bold,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    // Serial number
+                                                    Text(
+                                                      'Serial No - ${token.tokenNumber}',
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                         color: Colors.black,
                                                       ),
                                                     ),
@@ -284,14 +295,24 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            const SizedBox(height: 16),
+                                            const SizedBox(height: 8),
 
-                                            // Show single token
+                                            // Show patient name
                                             Text(
-                                              '${widget.tokens[0].patientName} ${widget.tokens[0].tokenNumber}',
+                                              widget.tokens[0].patientName,
                                               style: const TextStyle(
-                                                fontSize: 24,
+                                                fontSize: 18,
                                                 fontWeight: FontWeight.bold,
+                                                color: Colors.black,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            // Show serial number
+                                            Text(
+                                              'Serial No - ${widget.tokens[0].tokenNumber}',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
                                                 color: Colors.black,
                                               ),
                                             ),

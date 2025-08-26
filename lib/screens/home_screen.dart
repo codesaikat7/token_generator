@@ -79,8 +79,20 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Doctor'),
-        content: Text(
-            'Are you sure you want to delete Dr. ${doctor.name}? This will also delete all associated patients and tokens.'),
+        content: Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Are you sure you want to delete\n'),
+              TextSpan(
+                text: 'Dr. ${doctor.name}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const TextSpan(
+                  text:
+                      ' ? This will also delete all associated patients and tokens.'),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -114,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Delete All Doctors'),
         content: const Text(
-          'Are you sure you want to delete ALL doctors? '
+          'Are you sure you want to delete all doctors ? '
           'This action cannot be undone and will also delete all associated patients and tokens.',
         ),
         actions: [

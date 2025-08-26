@@ -23,6 +23,7 @@ class _AddDoctorDialogState extends State<AddDoctorDialog> {
       final doctor = Doctor(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text.trim(),
+        createdAt: DateTime.now(),
       );
       Navigator.of(context).pop(doctor);
     }
@@ -43,11 +44,11 @@ class _AddDoctorDialogState extends State<AddDoctorDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Title
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.person_add, color: Colors.deepPurple),
-                    const SizedBox(width: 12),
-                    const Expanded(
+                    Icon(Icons.person_add, color: Colors.deepPurple),
+                    SizedBox(width: 12),
+                    Expanded(
                       child: Text(
                         'Add New Doctor',
                         style: TextStyle(

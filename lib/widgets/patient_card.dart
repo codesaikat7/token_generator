@@ -146,8 +146,18 @@ class _PatientCardState extends State<PatientCard> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Patient'),
-        content:
-            Text('Are you sure you want to delete ${widget.patient.name}?'),
+        content: Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Are you sure you want to delete '),
+              TextSpan(
+                text: widget.patient.name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const TextSpan(text: '?'),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -215,10 +225,10 @@ class _PatientCardState extends State<PatientCard> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border:
-                            Border.all(color: Colors.green.withOpacity(0.3)),
+                        border: Border.all(
+                            color: Colors.green.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -247,7 +257,7 @@ class _PatientCardState extends State<PatientCard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(
-                  child: Container(
+                  child: SizedBox(
                     width: 85,
                     height: 24,
                     child: ElevatedButton(
@@ -285,7 +295,7 @@ class _PatientCardState extends State<PatientCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
+                SizedBox(
                   width: 24,
                   height: 24,
                   child: IconButton(
@@ -294,7 +304,7 @@ class _PatientCardState extends State<PatientCard> {
                     tooltip: 'Delete Patient',
                     padding: EdgeInsets.zero,
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.red.withOpacity(0.1),
+                      backgroundColor: Colors.red.withValues(alpha: 0.1),
                       minimumSize: const Size(24, 24),
                     ),
                   ),
